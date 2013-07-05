@@ -40,13 +40,14 @@
        android:src="@drawable/divider"
        />
     
-   <ImageView
+   <ImageButton
        android:id="@+id/home_icon"
+       android:onClick="onHomeButtonClick"
        android:layout_width="wrap_content"
        android:layout_height="wrap_content"
        android:layout_alignParentRight="true"
        android:layout_marginRight="5dp"
        android:src="@drawable/home"
-       
-       ></ImageView>
+       android:background="@android:color/transparent"
+       ></ImageButton>
 </RelativeLayout>

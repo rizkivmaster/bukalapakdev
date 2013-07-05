@@ -14,6 +14,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import services.APIService;
+import view.general.ExtendedActivity;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -21,6 +22,7 @@ import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.Bitmap;
@@ -51,7 +53,7 @@ import android.widget.Toast;
 
 import com.bukalapakmobile.R;
 
-public class UploadProductActivity extends Activity {
+public class UploadProductActivity extends ExtendedActivity {
 	// /GROUP SELECTION
 	private static final int GROUP_PICTURE_SELECTION = 1;
 	private static final int GROUP_CATEGORY_SELECTION_NODE = 2;
@@ -66,10 +68,10 @@ public class UploadProductActivity extends Activity {
 	// for category
 	LinkedList<JSONObject> cate_src;
 	ArrayList<String> listKategori = new ArrayList<String>();
-	
+
 	private Context context;
 
-	//String kategori;
+	// String kategori;
 	TextView kategori;
 	EditText namaBarang;
 	EditText kondisi;
@@ -82,7 +84,7 @@ public class UploadProductActivity extends Activity {
 	RadioButton baru;
 	String username;
 	String password;
-	String [] list_kota;
+	String[] list_kota;
 	Button image_select;
 	Button unggah;
 	Button city_select;
@@ -97,43 +99,36 @@ public class UploadProductActivity extends Activity {
 	HashMap<String, View> specs;
 	String category_id = "242";
 	ImageView imgview;
-//	ImageUploadAdapter imageAdapter;
+	// ImageUploadAdapter imageAdapter;
 	private Bitmap bitmap;
 	// Session Manager Class
 	// SessionManager session;
 	private APIService api;
 	private ServiceConnection mConnection;
-	
-	protected CharSequence [] kota;
+
+	protected CharSequence[] kota;
 	protected ArrayList<CharSequence> selectedKota;
 
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		context = this;
 		setContentView(R.layout.view_product_upload_main);
-		cate_src = new LinkedList<JSONObject>();
-		img_ids = new ArrayList<String>();
-		attribs = new HashMap<String, String>();
-		specs = new HashMap<String, View>();
-//		imageAdapter = new ImageUploadAdapter(getApplicationContext());
+		// setHomeButton(true);
+		// imageAdapter = new ImageUploadAdapter(getApplicationContext());
 		len = (LinearLayout) findViewById(R.id.listSpecs);
 		listImages = (LinearLayout) findViewById(R.id.listImages);
-		
+
 		// untuk multiplechoice
 		list_kota = getResources().getStringArray(R.array.daftar_kota);
-		kota = (CharSequence []) list_kota;
+		kota = (CharSequence[]) list_kota;
 		selectedKota = new ArrayList<CharSequence>();
-
-		
-
-		
 
 		// session = new SessionManager(getApplicationContext());
 		//
 		// TextView lblName = (TextView) findViewById(R.id.lblName);
 		// TextView lblEmail = (TextView) findViewById(R.id.lblEmail);
 
-		kategori =  (TextView)  findViewById(R.id.kategori_text);
+		kategori = (TextView) findViewById(R.id.kategori_text);
 		namaBarang = (EditText) findViewById(R.id.namabarang_edittext);
 		bekas = (RadioButton) findViewById(R.id.radioBekas);
 		baru = (RadioButton) findViewById(R.id.radioBaru);
@@ -151,109 +146,7 @@ public class UploadProductActivity extends Activity {
 		unggah = (Button) findViewById(R.id.product_upload_save_button);
 		city_select = (Button) findViewById(R.id.pilihdelivery_button);
 		registerForContextMenu(image_select);
-		registerForContextMenu(namaBarang);
-		ComponentName myService = startService(new Intent(this, APIService.class));
-		bindService(new Intent(this, APIService.class), mConnection, BIND_AUTO_CREATE);
-//		Intent intent = new Intent(this, APIService.class);
-//		bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-		mConnection = new ServiceConnection() {
-			@Override
-			public void onServiceConnected(ComponentName arg0, IBinder arg1) {
-				api = ((APIService.MyBinder) arg1).getService();
-				Toast.makeText(getApplicationContext(),
-						"Connected to API Service", Toast.LENGTH_SHORT).show();
-
-				try {
-					api.retrieveNewAccess("rizkivmaster", "18091992gnome",
-							new APIListener() {
-								ProgressDialog pd;
-								@Override
-								public void onSuccess(Object res, Exception e,
-										InternetTask task) {
-										pd.dismiss();
-									api.listCategory(new APIListener() {
-
-										@Override
-										public void onSuccess(Object res,
-												Exception e, InternetTask task) {
-											// TODO Auto-generated method stub
-											pd.dismiss();
-											cate_src.add((JSONObject) res);
-											openContextMenu(namaBarang);
-										}
-
-										@Override
-										public void onHold(InternetTask task) {
-											// TODO Auto-generated method stub
-											pd.dismiss();
-										}
-
-										@Override
-										public void onExecute(InternetTask task) {
-											// TODO Auto-generated method stub
-											
-										}
-
-										@Override
-										public void onEnqueue(InternetTask task) {
-											// TODO Auto-generated method stub
-											pd = new ProgressDialog(context);
-
-					                         pd.setTitle("Kategori");
-
-					                         pd.setMessage("Tunggu sebentar, sedang mengambil kategori...");
-
-					                         pd.setCancelable(false);
-
-					                         pd.setIndeterminate(true);
-
-					                         pd.show();
-										}
-									});
-								}
-
-								@Override
-								public void onHold(InternetTask task) {
-									// TODO Auto-generated method stub
-									pd.dismiss();
-								}
-
-								@Override
-								public void onExecute(InternetTask task) {
-									// TODO Auto-generated method stub
-
-								}
-
-								@Override
-								public void onEnqueue(InternetTask task) {
-									// TODO Auto-generated method stub
-									pd = new ProgressDialog(context);
-
-			                         pd.setTitle("Otentikasi");
-
-			                         pd.setMessage("Tunggu sebentar, sedang otentikasi...");
-
-			                         pd.setCancelable(false);
-
-			                         pd.setIndeterminate(true);
-
-			                         pd.show();
-								}
-							});
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-
-			@Override
-			public void onServiceDisconnected(ComponentName arg0) {
-				Toast.makeText(getApplicationContext(),
-						"Disconnected from API Service", Toast.LENGTH_SHORT)
-						.show();
-			}
-
-		};
+		registerForContextMenu(kategori);
 
 		image_select.setOnClickListener(new View.OnClickListener() {
 
@@ -265,18 +158,19 @@ public class UploadProductActivity extends Activity {
 				}
 			}
 		});
-		
+
 		city_select.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View view) {
-				switch(view.getId()) {
-					case R.id.pilihdelivery_button:
-						showSelectCityDialog();
-						break;
+				switch (view.getId()) {
+				case R.id.pilihdelivery_button:
+					showSelectCityDialog();
+					break;
 
-					default:
-						break;
+				default:
+					break;
 				}
-			}});
+			}
+		});
 		unggah.setOnClickListener(new OnClickListener() {
 
 			@Override
@@ -307,13 +201,20 @@ public class UploadProductActivity extends Activity {
 							public void onSuccess(Object res, Exception e,
 									InternetTask task) {
 								// TODO Auto-generated method stub
-
+								clearProgressDialog();
+								Toast.makeText(UploadProductActivity.this,
+										"Berhasil dikirim", Toast.LENGTH_SHORT)
+										.show();
+								finish();
 							}
 
 							@Override
 							public void onHold(InternetTask task) {
 								// TODO Auto-generated method stub
-
+								clearProgressDialog();
+								Toast.makeText(UploadProductActivity.this,
+										"Gagal dikirim", Toast.LENGTH_SHORT)
+										.show();
 							}
 
 							@Override
@@ -325,7 +226,8 @@ public class UploadProductActivity extends Activity {
 							@Override
 							public void onEnqueue(InternetTask task) {
 								// TODO Auto-generated method stub
-
+								showProgressDialog("Unggah Produk",
+										"Sedang mengunggah produk", null);
 							}
 						}, obj);
 					} catch (UnsupportedEncodingException e) {
@@ -338,7 +240,59 @@ public class UploadProductActivity extends Activity {
 				}
 			}
 		});
-		// registerForContextMenu(unggah);
+	}
+
+	@Override
+	public void onServiceReady(APIService api) {
+		// TODO Auto-generated method stub
+		super.onServiceReady(api);
+		this.api = api;
+		cate_src = new LinkedList<JSONObject>();
+		img_ids = new ArrayList<String>();
+		attribs = new HashMap<String, String>();
+		specs = new HashMap<String, View>();
+		api.listCategory(new APIListener() {
+
+			@Override
+			public void onSuccess(Object res, Exception e, InternetTask task) {
+				// TODO Auto-generated method stub
+				clearProgressDialog();
+				if (e != null) {
+					Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT)
+							.show();
+				} else {
+					cate_src.add((JSONObject) res);
+					openContextMenu(kategori);
+				}
+			}
+
+			@Override
+			public void onHold(InternetTask task) {
+				// TODO Auto-generated method stub
+				finish();
+				clearProgressDialog();
+			}
+
+			@Override
+			public void onExecute(InternetTask task) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onEnqueue(InternetTask task) {
+				// TODO Auto-generated method stub
+				showProgressDialog("Kategori", "Sedang mengambil kategori....",
+						new OnCancelListener() {
+							
+							@Override
+							public void onCancel(DialogInterface dialog) {
+								// TODO Auto-generated method stub
+								finish();
+							}
+						});
+			}
+		});
 	}
 
 	@Override
@@ -350,7 +304,7 @@ public class UploadProductActivity extends Activity {
 			menu.setHeaderTitle("Pilih sumber");
 			menu.add(GROUP_PICTURE_SELECTION, SELECT_IMAGE_GALLERY, 0, "Galeri");
 			menu.add(GROUP_PICTURE_SELECTION, SELECT_IMAGE_CAMERA, 1, "Kamera");
-		} else if (v == namaBarang) {
+		} else if (v == kategori) {
 			menu.setHeaderTitle("Pilih kategori :");
 			@SuppressWarnings("unchecked")
 			Iterator<String> iter = cate_src.getLast().keys();
@@ -369,12 +323,15 @@ public class UploadProductActivity extends Activity {
 						// TODO Auto-generated catch block
 						e1.printStackTrace();
 					}
-					menu.add(GROUP_CATEGORY_SELECTION_CHILD, Integer.parseInt(key),
-							ContextMenu.NONE, name);
+					menu.add(GROUP_CATEGORY_SELECTION_CHILD,
+							Integer.parseInt(key), ContextMenu.NONE, name);
 				}
 			}
-			if(cate_src.size()>1)menu.add(GROUP_CATEGORY_BACK, ContextMenu.NONE, ContextMenu.NONE, "Kembali");
-			menu.add(GROUP_CATEGORY_CANCEL, ContextMenu.NONE, ContextMenu.NONE, "Batalkan");
+			if (cate_src.size() > 1)
+				menu.add(GROUP_CATEGORY_BACK, ContextMenu.NONE,
+						ContextMenu.NONE, "Kembali");
+			menu.add(GROUP_CATEGORY_CANCEL, ContextMenu.NONE, ContextMenu.NONE,
+					"Batalkan");
 		}
 	}
 
@@ -413,23 +370,27 @@ public class UploadProductActivity extends Activity {
 				e.printStackTrace();
 			}
 			closeContextMenu();
-			openContextMenu(namaBarang);
+			openContextMenu(kategori);
 			break;
 		case GROUP_CATEGORY_SELECTION_CHILD:
-			
+
 			try {
-				String name = cate_src.getLast().getString(Integer.toString(idCode));
+				String name = cate_src.getLast().getString(
+						Integer.toString(idCode));
 				listKategori.add((String) item.getTitle());
 				kategori.setText(name);
 			} catch (JSONException e3) {
 				// TODO Auto-generated catch block
 				e3.printStackTrace();
 			}
-				api.listAttributes(new APIListener() {
-					ProgressDialog pd;
-					@Override
-					public void onSuccess(Object res, Exception e,
-							InternetTask task) {
+			api.listAttributes(new APIListener() {
+				@Override
+				public void onSuccess(Object res, Exception e, InternetTask task) {
+					clearProgressDialog();
+					if (e != null) {
+						Toast.makeText(context, e.getMessage(),
+								Toast.LENGTH_SHORT).show();
+					} else {
 						JSONObject src = (JSONObject) res;
 						Iterator<String> iter = src.keys();
 						while (iter.hasNext()) {
@@ -445,15 +406,19 @@ public class UploadProductActivity extends Activity {
 
 								JSONArray values = src.getJSONObject(key)
 										.getJSONArray("options");
-								
-								
-								LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
-								View view = inflater.inflate(R.layout.view_product_upload_field, null);
-								TextView tx = (TextView) view.findViewById(R.id.field_text);
+
+								LayoutInflater inflater = LayoutInflater
+										.from(getApplicationContext());
+								View view = inflater.inflate(
+										R.layout.view_product_upload_field,
+										null);
+								TextView tx = (TextView) view
+										.findViewById(R.id.field_text);
 								tx.setText(disp);
 								View vw = null;
 								if (values.length() == 0) {
-									EditText et = (EditText) view.findViewById(R.id.field_edittext);
+									EditText et = (EditText) view
+											.findViewById(R.id.field_edittext);
 									et.setVisibility(EditText.VISIBLE);
 									vw = et;
 								} else {
@@ -470,7 +435,8 @@ public class UploadProductActivity extends Activity {
 										}
 									}
 									adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-									Spinner spin = (Spinner) view.findViewById(R.id.field_spinner);
+									Spinner spin = (Spinner) view
+											.findViewById(R.id.field_spinner);
 									spin.setAdapter(adapter);
 									spin.setVisibility(Spinner.VISIBLE);
 									vw = spin;
@@ -485,45 +451,43 @@ public class UploadProductActivity extends Activity {
 						}
 
 						len.requestLayout();
-						pd.dismiss();
 					}
+				}
 
-					@Override
-					public void onHold(InternetTask task) {
-						// TODO Auto-generated method stub
-						pd.dismiss();
-					}
+				@Override
+				public void onHold(InternetTask task) {
+					// TODO Auto-generated method stub
+					clearProgressDialog();
+					finish();
+				}
 
-					@Override
-					public void onExecute(InternetTask task) {
-						// TODO Auto-generated method stub
+				@Override
+				public void onExecute(InternetTask task) {
+					// TODO Auto-generated method stub
 
-					}
+				}
 
-					@Override
-					public void onEnqueue(InternetTask task) {
-						// TODO Auto-generated method stub
-						pd = new ProgressDialog(context);
-
-                        pd.setTitle("Isian Produk");
-
-                        pd.setMessage("Tunggu sebentar, sedang membuat isian produk...");
-
-                        pd.setCancelable(false);
-
-                        pd.setIndeterminate(true);
-
-                        pd.show();
-					}
-				}, "" + idCode);
-
+				@Override
+				public void onEnqueue(InternetTask task) {
+					// TODO Auto-generated method stub
+					showProgressDialog("Isian Produk",
+							"Sedang memuat isian produk", new OnCancelListener() {
+								
+								@Override
+								public void onCancel(DialogInterface dialog) {
+									// TODO Auto-generated method stub
+									finish();
+								}
+							});
+				}
+			}, "" + idCode);
 
 			break;
 		case GROUP_CATEGORY_BACK:
 			cate_src.removeLast();
-			listKategori.remove(listKategori.size()-1);
+			listKategori.remove(listKategori.size() - 1);
 			closeContextMenu();
-			openContextMenu(namaBarang);
+			openContextMenu(kategori);
 			break;
 		case GROUP_CATEGORY_CANCEL:
 			finish();
@@ -544,11 +508,11 @@ public class UploadProductActivity extends Activity {
 			product.put("new", "false");
 		if (baru.isChecked())
 			product.put("new", "true");
-		if(nego.isChecked())
+		if (nego.isChecked())
 			product.put("negotiable", "true");
-		else 
+		else
 			product.put("negotiable", "false");
-		
+
 		JSONObject attrib_det = new JSONObject();
 		for (String k : attribs.keySet()) {
 			View v = specs.get(k);
@@ -624,91 +588,91 @@ public class UploadProductActivity extends Activity {
 			toast.show();
 		}
 	}
-	
+
 	protected void showSelectCityDialog() {
 		final boolean[] checkedColours = new boolean[kota.length];
 		int count = kota.length;
-		
 
-		for(int i = 0; i < count; i++)
+		for (int i = 0; i < count; i++)
 			checkedColours[i] = selectedKota.contains(kota[i]);
 
 		DialogInterface.OnMultiChoiceClickListener coloursDialogListener = new DialogInterface.OnMultiChoiceClickListener() {
 			@Override
-			public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-				ListView dialogListView = ((AlertDialog)dialog).getListView();
-				if(isChecked){
-					
-					if(which==0)
-					{
-						 	if(dialogListView!=null)
-						 	{
-						 		selectedKota.clear(); 
-						 		//Log.i(tagName, "Dialog List Item Count"+dialogListView.getCount());
-								 for (int position = 0; position < dialogListView.getCount(); position++) {
-									 if(position>0)
-									 {
-										 //Log.i(tagName, "Iterating for Adding Positions : "+position);
-										 // Check items, disable and make them unclickable
-										 dialogListView.setItemChecked(position, true);										 
-										 selectedKota.add(kota[position]);
-									 }
-								 }
+			public void onClick(DialogInterface dialog, int which,
+					boolean isChecked) {
+				ListView dialogListView = ((AlertDialog) dialog).getListView();
+				if (isChecked) {
+
+					if (which == 0) {
+						if (dialogListView != null) {
+							selectedKota.clear();
+							// Log.i(tagName,
+							// "Dialog List Item Count"+dialogListView.getCount());
+							for (int position = 0; position < dialogListView
+									.getCount(); position++) {
+								if (position > 0) {
+									// Log.i(tagName,
+									// "Iterating for Adding Positions : "+position);
+									// Check items, disable and make them
+									// unclickable
+									dialogListView.setItemChecked(position,
+											true);
+									selectedKota.add(kota[position]);
+								}
 							}
-						 	
+						}
+
 					} else {
-						//ini seharusnya bikin si check all unchecked
+						// ini seharusnya bikin si check all unchecked
 						checkedColours[0] = false;
 						dialogListView.setItemChecked(0, false);
 						selectedKota.add(kota[which]);
 					}
 				}
-			
+
 				else
 					selectedKota.remove(kota[which]);
 
-				//onChangeSelectedColours();
+				// onChangeSelectedColours();
 			}
 		};
 
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder.setTitle("Pilih Kota");
 		builder.setMultiChoiceItems(kota, checkedColours, coloursDialogListener);
-		builder.setPositiveButton("OK", new DialogInterface.OnClickListener()
-	    {
-	        @Override
-	        public void onClick(DialogInterface dialog, int whichButton)
-	        {
-	           // SHOULD NOW WORK
-	        	Toast.makeText(UploadProductActivity.this, "HAHAI", Toast.LENGTH_SHORT).show();
-	        	onChangeSelectedCity();
-	        }
-	    });
-		
+		builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int whichButton) {
+				// SHOULD NOW WORK
+				Toast.makeText(UploadProductActivity.this, "HAHAI",
+						Toast.LENGTH_SHORT).show();
+				onChangeSelectedCity();
+			}
+		});
 
 		AlertDialog dialog = builder.create();
 		dialog.show();
 	}
-	
+
 	protected void onChangeSelectedCity() {
 		StringBuilder stringBuilder = new StringBuilder();
 
-		for(CharSequence colour : selectedKota)
+		for (CharSequence colour : selectedKota)
 			stringBuilder.append(colour + ",");
-		
-		//ambilnya di string builder, masukin arraylist aja ya nanti
+
+		// ambilnya di string builder, masukin arraylist aja ya nanti
 		city_select.setText(stringBuilder.toString());
 	}
-
 
 	private void addImage(Bitmap b, String g) throws Exception {
 		final String s = g;
 		LayoutInflater inflater = LayoutInflater.from(getApplicationContext());
-		final View view = inflater.inflate(R.layout.view_product_upload_image, null);
+		final View view = inflater.inflate(R.layout.view_product_upload_image,
+				null);
 		ImageView imgview = (ImageView) view.findViewById(R.id.thumb);
 		imgview.setImageBitmap(b);
 		final Button btn = (Button) view.findViewById(R.id.controlBtn);
-//		final TextView imgname = (TextView) view.findViewById(R.id.imgname);
+		// final TextView imgname = (TextView) view.findViewById(R.id.imgname);
 		final ProgressBar progress = (ProgressBar) view
 				.findViewById(R.id.progress);
 		final ImageView imgOk = (ImageView) view.findViewById(R.id.finishIcon);

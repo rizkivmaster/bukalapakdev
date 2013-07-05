@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
 
     <string name="app_name">BukaLapak Mobile</string>
@@ -8,8 +9,9 @@
     <string name="action_settings">Settings</string>
     <string name="title_activity_list_product">ListProductActivity</string>
     <string name="title_activity_lapak">LapakActivity</string>
-    
-        <string name="spinner_title">Pilih aksi</string>
+    <string name="spinner_title">Pilih aksi</string>
     <string name="company_name">Bukalapak.com</string>
     <string name="product_name">Kertas</string>
+    <string name="title_activity_main">MainActivity</string>
+
 </resources>

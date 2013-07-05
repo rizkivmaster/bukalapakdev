@@ -1,5 +1,6 @@
 package model.system;
 
+import java.io.InputStream;
 import java.io.Serializable;
 
 import listener.APIListener;
@@ -71,7 +72,7 @@ public class InternetTask implements Comparable<InternetTask>{
 		}
 	}
 	
-	public void tellFinish(JSONObject res)
+	public void tellFinish(InputStream res)
 	{
 		if(networkListener!=null)
 		{

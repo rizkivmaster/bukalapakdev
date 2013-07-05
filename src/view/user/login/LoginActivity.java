@@ -3,6 +3,7 @@ package view.user.login;
 import listener.APIListener;
 import model.system.InternetTask;
 import services.APIService;
+import view.general.ExtendedActivity;
 import view.home.Dashboard;
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -25,7 +26,7 @@ import android.widget.Toast;
 import com.bukalapakmobile.R;
 
 
-public class LoginActivity extends Activity {
+public class LoginActivity extends ExtendedActivity {
 	ProgressBar progress;
 	EditText userText;
     EditText passText;
@@ -79,7 +80,6 @@ public class LoginActivity extends Activity {
 								@Override
 								public void onEnqueue(InternetTask task) {
 									// TODO Auto-generated method stub
-
 								}
 
 								@Override

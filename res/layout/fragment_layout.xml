@@ -1,4 +1,4 @@
-<other.DashboardLayout
+<view.home.DashboardLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
@@ -6,17 +6,17 @@
     android:background="#f8f9fe" >
 	<!--  News Feed Button -->
     <Button
-        android:id="@+id/btn_news_feed"
+        android:id="@+id/btn_upload"
         style="@style/DashboardButton"
         android:drawableTop="@drawable/rating"
-        android:text="News Feed" />
+        android:text="Upload" />
     
 	<!--  Friends Button -->
     <Button
-        android:id="@+id/btn_friends"
+        android:id="@+id/btn_mylapak"
         style="@style/DashboardButton"
         android:drawableTop="@drawable/rating"
-        android:text="Friends" />
+        android:text="MyLapak" />
     
 	<!--  Messages Button -->
     <Button
@@ -46,4 +46,4 @@
         android:drawableTop="@drawable/rating"
         android:text="Photos" />
 
-</other.DashboardLayout>
+</view.home.DashboardLayout>

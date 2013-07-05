@@ -16,6 +16,8 @@ import java.io.StreamCorruptedException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.PriorityQueue;
 
 import listener.APIListener;
@@ -25,7 +27,6 @@ import model.business.Product;
 import model.system.InternetTask;
 
 import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -47,41 +48,38 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
+import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.StrictMode;
 import android.util.Base64;
 import android.util.Log;
 
 public class APIService extends Service {
-	private String url = "https://api.bukalapak.com/v1/";
-	// SHARED PREFERENCE
-	SharedPreferences pref;
-	Editor editor;
-	int PRIVATE_MODE = 0;
-	private static final String IS_LOGIN = "IsLoggedIn";
-	private static final String PREF_NAME = "BukaLapak";
-	public static final String KEY_ID = "id";
-	public static final String KEY_TOKEN = "token";
 
+	private String url = "https://api.bukalapak.com/v1/";
 	static String userid;
 	static String token;
 	private final IBinder mBinder = new MyBinder();
 	private PriorityQueue<InternetTask> backgroundTasks;
-	private InternetTask foregroundTask;
-	private UploadStatus uploadStatus = UploadStatus.IDLE;
+	private PriorityQueue<InternetTask> foregroundTasks;
+	private UploadStatus backgroundStatus;
+	private UploadStatus foregroundStatus;
+	private NetworkStatus networkStatus;
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
-
+		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+	    StrictMode.setThreadPolicy(policy);
+		pref = getApplicationContext().getSharedPreferences(PREF_NAME,PRIVATE_MODE);
+		editor = pref.edit();
 		backgroundTasks = new PriorityQueue<InternetTask>();
-		// inisiasi foreground
-		foregroundTask = null;
-		if(hasActiveLogin())
-		{
+		foregroundTasks = new PriorityQueue<InternetTask>();
+		if (hasActiveLogin()) {
 			getActiveLogin();
 			try {
 				loadBackGroundProcess();
@@ -95,45 +93,21 @@ public class APIService extends Service {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			processBackgroundTask();
+			kickBackgroundTask();
 		}
 	}
-	
+
 	@Override
 	public void onDestroy() {
 		// TODO Auto-generated method stub
-		if(hasActiveLogin())
-			saveBackGroundProcess();
 		super.onDestroy();
+		if (hasActiveLogin())
+			saveBackGroundProcess();
 	}
 
-	private void executeBackgroundTask(InternetTask task) {
-		backgroundTasks.add(task);
-		task.tellEnqueued();
-		if (uploadStatus != UploadStatus.BUSY)
-			processBackgroundTask();
-	}
-
-	private void executeForegroundTask(InternetTask task) {
-
-		if (foregroundTask != null && foregroundTask != task) {
-			foregroundTask.cancelProcess();
-		}
-		foregroundTask = task;
-		task.tellEnqueued();
-		new ForegroundPostData().execute();
-	}
-
-	private void processBackgroundTask() {
-		new BackgroundPostData().execute();
-	}
-	
-	public void continueRemainingProcess()
-	{
-		if(uploadStatus == UploadStatus.ONHOLD)
-		{
-			processBackgroundTask();
-		}
+	private HttpGet requestBlank(String url) throws Exception {
+		HttpGet result = new HttpGet(url);
+		return result;
 	}
 
 	private HttpPost post(String user, String pass, String suburl)
@@ -208,15 +182,21 @@ public class APIService extends Service {
 		return result;
 	}
 
+	// ////////////////////////// SHARED PREFERENCE
+	// PART/////////////////////////////////
+	Editor editor;
+	SharedPreferences pref;
+	private static int PRIVATE_MODE = 0;
+	private static final String IS_LOGIN = "IsLoggedIn";
+	private static final String PREF_NAME = "BukaLapak";
+	private static final String KEY_ID = "id";
+	private static final String KEY_TOKEN = "token";
+
 	private boolean hasActiveLogin() {
-		// return (userid != null && token != null);
 		return pref.getBoolean(IS_LOGIN, false);
 	}
 
 	private void getActiveLogin() {
-		pref = getApplicationContext().getSharedPreferences(PREF_NAME,
-				PRIVATE_MODE);
-		editor = pref.edit();
 		userid = pref.getString(KEY_ID, null);
 		token = pref.getString(KEY_TOKEN, null);
 	}
@@ -237,37 +217,9 @@ public class APIService extends Service {
 		editor.clear();
 		editor.commit();
 	}
-	
-	public boolean isActive()
-	{
-		return userid!=null && token!=null;
-	}
-	public void saveBackGroundProcess() {
-		FileOutputStream fout;
-		try {
-			fout = new FileOutputStream(userid);
-			ObjectOutputStream oos = new ObjectOutputStream(fout);
-			oos.writeObject(backgroundTasks);
-			oos.close();
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 
-	@SuppressWarnings("unused")
-	private void loadBackGroundProcess()
-			throws StreamCorruptedException, IOException,
-			ClassNotFoundException {
-		FileInputStream fin;
-		fin = new FileInputStream(userid);
-		ObjectInputStream iis = new ObjectInputStream(fin);
-		@SuppressWarnings("unchecked")
-		PriorityQueue<InternetTask> result = (PriorityQueue<InternetTask>) iis
-				.readObject();
-		if(result!=null && !result.isEmpty()) backgroundTasks = result;
+	public boolean isActive() {
+		return userid != null && token != null;
 	}
 
 	// /////////////////////////////AUTHENTICATION API//////////////////////
@@ -282,9 +234,10 @@ public class APIService extends Service {
 		// set network listenernya
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				String status = null;
 				try {
+					JSONObject res = convertToJSON(r);
 					status = res.getString("status");
 					if (status.equals("OK")) {
 						userid = res.getString("user_id");
@@ -306,14 +259,11 @@ public class APIService extends Service {
 
 	// ////LOGOUT////////////
 	public void removeRecentAccess() {
-
 		APIService.userid = null;
 		APIService.token = null;
 		removeActiveLogin();
-		backgroundTasks.clear();
-		if (foregroundTask != null)
-			foregroundTask.cancelProcess();
-		// session.logoutUser();
+		endBackgroundProcess();
+		endForegroundProcess();
 	}
 
 	// //////////////////////////////CATEGORY API//////////////////////////
@@ -325,8 +275,9 @@ public class APIService extends Service {
 				APIPriority.FOREGROUND_TASK, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK"))
 						task.tellResult(res.getJSONObject("categories"), null);
 					else
@@ -334,7 +285,8 @@ public class APIService extends Service {
 								new Exception(res.getString("message")));
 				} catch (JSONException e) {
 					// TODO Auto-generated catch block
-					task.tellResult(null, e);
+					task.tellResult(null,
+							e);
 				}
 			}
 		});
@@ -349,8 +301,9 @@ public class APIService extends Service {
 				APIPriority.FOREGROUND_TASK, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK"))
 						task.tellResult(res.getJSONObject("attributes"), null);
 					else
@@ -374,8 +327,9 @@ public class APIService extends Service {
 				APIPriority.UPLOAD_IMAGE_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getString("id"), null);
 					} else {
@@ -392,6 +346,22 @@ public class APIService extends Service {
 		return task;
 	}
 
+	public InternetTask retrieveImage(APIListener l, String url)
+			throws Exception {
+		HttpUriRequest req = requestBlank(url);
+		final InternetTask task = new InternetTask(req,
+				APIPriority.FOREGROUND_TASK, l);
+		task.setNetworkListener(new NetworkListener() {
+			@Override
+			public void onGivingResult(InputStream r) {
+				Bitmap b = BitmapFactory.decodeStream(r);
+					task.tellResult(b, null);
+			}
+		});
+		executeForegroundTask(task);
+		return task;
+	}
+
 	// ///////////////////////RETRIEVE IMAGE//////////////////////////////////
 
 	// ///////////////////////////PRODUCT API//////////////////////////////////
@@ -403,8 +373,9 @@ public class APIService extends Service {
 				APIPriority.UPLOAD_PRODUCT_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getString("id"), null);
 					} else {
@@ -429,8 +400,9 @@ public class APIService extends Service {
 				APIPriority.UPDATE_PRODUCT_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getJSONObject("product"), null);
 					} else {
@@ -454,8 +426,9 @@ public class APIService extends Service {
 		task.setNetworkListener(new NetworkListener() {
 
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						JSONObject p = res.getJSONObject("product");
 						String id = p.getString("id");
@@ -483,8 +456,9 @@ public class APIService extends Service {
 				APIPriority.RELIST_PRODUCT_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getString("id"), null);
 					} else {
@@ -508,8 +482,9 @@ public class APIService extends Service {
 				APIPriority.RELIST_PRODUCT_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getString("id"), null);
 					} else {
@@ -532,8 +507,9 @@ public class APIService extends Service {
 				APIPriority.DELETE_PRODUCT_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getString("id"), null);
 					} else {
@@ -565,19 +541,53 @@ public class APIService extends Service {
 				APIPriority.FOREGROUND_TASK, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				// TODO Auto-generated method stub
 				ArrayList<Product> result = new ArrayList<Product>();
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						JSONArray products = res.getJSONArray("products");
 						for (int ii = 0; ii < products.length(); ii++) {
 							JSONObject p = products.getJSONObject(ii);
 							String id = p.getString("id");
 							Product product = new Product(id);
+							product.setCategory(p.getString("name"));
+							JSONArray catlist = p.getJSONArray("category_structure");
+							List<String> temp = new ArrayList<String>(); 
+							for(int jj = 0; jj < catlist.length();jj++)
+							{
+								temp.add(catlist.getString(jj));
+							}
+							product.setCategory_structure(temp);
 							product.setName(p.getString("name"));
+							product.setCity(p.getString("city"));
+							product.setProvince(p.getString("province"));
 							product.setPrice(Integer.parseInt(p
 									.getString("price")));
+							List<String> temp2 = new ArrayList<String>(); 
+							JSONArray imglist = p.getJSONArray("images");
+							for(int jj = 0; jj < imglist.length();jj++)
+							{
+								temp2.add(imglist.getString(jj));
+							}
+							product.setImages(temp2);
+							product.setUrl(p.getString("url"));
+							product.setDescription(p.getString("desc"));
+							product.setCondition(p.getString("condition"));
+							product.setNego(Boolean.parseBoolean(p.getString("nego")));
+							product.setSeller_name(p.getString("seller_name"));
+							product.setPayment_ready(Boolean.parseBoolean(p.getString("payment_ready")));
+							JSONObject specs = p.getJSONObject("specs");
+							@SuppressWarnings("unchecked")
+							Iterator<String> iter = specs.keys();
+							HashMap<String,String> temp3 = new HashMap<String, String>();
+							while(iter.hasNext())
+							{
+								String key = iter.next();
+								temp3.put(key, specs.getString(key));
+							}
+							product.setSpecs(temp3);
 							result.add(product);
 						}
 						task.tellResult(result, null);
@@ -614,10 +624,11 @@ public class APIService extends Service {
 				APIPriority.FOREGROUND_TASK, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				// TODO Auto-generated method stub
 				ArrayList<Product> result = new ArrayList<Product>();
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						JSONArray products = res.getJSONArray("products");
 						for (int ii = 0; ii < products.length(); ii++) {
@@ -627,6 +638,8 @@ public class APIService extends Service {
 							product.setName(p.getString("name"));
 							product.setPrice(Integer.parseInt(p
 									.getString("price")));
+							product.setStock(Integer.parseInt(p
+									.getString("stock")));
 							result.add(product);
 						}
 						task.tellResult(result, null);
@@ -662,9 +675,10 @@ public class APIService extends Service {
 				APIPriority.FOREGROUND_TASK, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				// TODO Auto-generated method stub
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getJSONObject("transactions"), null);
 					} else {
@@ -693,9 +707,10 @@ public class APIService extends Service {
 				APIPriority.FOREGROUND_TASK, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				// TODO Auto-generated method stub
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getJSONObject("transactions"), null);
 					} else {
@@ -716,8 +731,7 @@ public class APIService extends Service {
 		executeForegroundTask(task);
 	}
 
-	// /////////////////////////////CONFIRM
-	// SHIPPING//////////////////////////////////////
+	// //////CONFIRM SHIPPING//////////////////////////////////////
 	public void confirmShipping(APIListener l, String trans_id,
 			String ship_code, String new_courier) throws JSONException,
 			UnsupportedEncodingException {
@@ -733,8 +747,9 @@ public class APIService extends Service {
 				APIPriority.CONFIRM_SHIPPING_ACTION, l);
 		task.setNetworkListener(new NetworkListener() {
 			@Override
-			public void onGivingResult(JSONObject res) {
+			public void onGivingResult(InputStream r) {
 				try {
+					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
 						task.tellResult(res.getString("id"), null);
 					} else {
@@ -750,9 +765,12 @@ public class APIService extends Service {
 		executeBackgroundTask(task);
 	}
 
-	// //////////////////////////////////////SWISS ARMY KNIFE
-	// TOOLS/////////////////////
-	private String parse(InputStream is) {
+	// ////////////////SWISS ARMY KNIFE TOOLS/////////////////////
+	private Bitmap convertToBitmap(InputStream is) {
+		return BitmapFactory.decodeStream(is);
+	}
+
+	private JSONObject convertToJSON(InputStream is) throws JSONException {
 		BufferedReader reader = null;
 		try {
 			reader = new BufferedReader(
@@ -773,7 +791,7 @@ public class APIService extends Service {
 			e.printStackTrace();
 		}
 		String response = sb.toString();
-		return response;
+		return new JSONObject(response);
 	}
 
 	private String getB64Auth(String login, String pass) {
@@ -784,21 +802,52 @@ public class APIService extends Service {
 		return ret;
 	}
 
+	// //////////////////////////PUBLIC RELATION : BINDING///////////////
 	@Override
 	public IBinder onBind(Intent arg0) {
 		// TODO Auto-generated method stub
 		return mBinder;
 	}
 
+	//
 	public class MyBinder extends Binder {
 		public APIService getService() {
 			return APIService.this;
 		}
 	}
 
+	// ///////////////////////////PROCESS CONTROL////////////////////////////
+
+	private void executeBackgroundTask(InternetTask task) {
+		backgroundTasks.add(task);
+		task.tellEnqueued();
+		kickBackgroundTask();
+	}
+
+	private void executeForegroundTask(InternetTask task) {
+		foregroundTasks.add(task);
+		task.tellEnqueued();
+		kickForegroundTask();
+	}
+
+	public void continueRemainingProcess() {
+		kickBackgroundTask();
+	}
+
+	private void kickBackgroundTask() {
+		if (backgroundStatus != UploadStatus.BUSY)
+			new BackgroundPushData().execute();
+	}
+
+	private void kickForegroundTask() {
+		if (foregroundStatus != UploadStatus.BUSY)
+			new ForegroundPushData().execute();
+	}
+
 	// //////////////////////////BACKGROUND PUSH/////////////////////////////
-	class BackgroundPostData extends AsyncTask<String, String, JSONObject> {
+	class BackgroundPushData extends AsyncTask<String, String, InputStream> {
 		InternetTask task = null;
+		Exception ex = null;
 
 		@Override
 		protected void onPreExecute() {
@@ -806,129 +855,226 @@ public class APIService extends Service {
 			super.onPreExecute();
 			if (!backgroundTasks.isEmpty()) {
 				task = backgroundTasks.peek();
-				ConnectivityManager conMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-				NetworkInfo i = conMgr.getActiveNetworkInfo();
-				if (i == null) {
-					uploadStatus = UploadStatus.ONHOLD;
-					task.tellHold();
-				} else if (i.isConnected()) {
-					uploadStatus = UploadStatus.IDLE;
-					task.tellStart();
-				} else if (i.isAvailable()) {
-					uploadStatus = UploadStatus.ONHOLD;
-					task.tellHold();
-				}
+				task.tellStart();
+				networkStatusGovernor();
 			}
 		}
 
 		@Override
-		protected JSONObject doInBackground(String... arg0) {
+		protected InputStream doInBackground(String... arg0) {
 			// TODO Auto-generated method stub
-			if (task != null && uploadStatus == UploadStatus.IDLE) {
-				uploadStatus = UploadStatus.BUSY;
-				task.setAppListener(new AppListener() {
-					@Override
-					public void onCancel() {
-						backgroundTasks.remove(this);
+			if (task != null) {
+				if (networkStatus == NetworkStatus.OK) {
+					backgroundStatus = UploadStatus.BUSY;
+					task.setAppListener(new AppListener() {
+						@Override
+						public void onCancel() {
+							backgroundTasks.remove(task);
+						}
+					});
+					try {
+//						HttpParams httpParameters = new BasicHttpParams();
+//						int timeoutConnection = 3000;
+//						HttpConnectionParams.setConnectionTimeout(
+//								httpParameters, timeoutConnection);
+//						int timeoutSocket = 5000;
+//						HttpConnectionParams.setSoTimeout(httpParameters,
+//								timeoutSocket);
+//						DefaultHttpClient httpclient = new DefaultHttpClient(
+//								httpParameters);
+						DefaultHttpClient httpclient = new DefaultHttpClient();
+						HttpResponse response = httpclient.execute(task
+								.getRequest());
+						return response.getEntity().getContent();
+					} catch (IllegalStateException e) {
+						// TODO Auto-generated catch block
+						ex = new Exception("Kesalahan pada jaringan");
+						return null;
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						ex = new Exception("Kesalahan pada jaringan");
+						return null;
 					}
-				});
-				DefaultHttpClient httpclient = new DefaultHttpClient();
-				HttpResponse response = null;
-				try {
-					response = httpclient.execute(task.getRequest());
-					String temp = parse(response.getEntity().getContent());
-					JSONObject result = new JSONObject(temp);
-					return result;
-				} catch (ClientProtocolException e) {
-					uploadStatus = UploadStatus.ONHOLD;
-					Log.e("Error API", e.getMessage());
-				} catch (IOException e) {
-					uploadStatus = UploadStatus.ONHOLD;
-					Log.e("Error API", e.getMessage());
-				} catch (JSONException e) {
-					uploadStatus = UploadStatus.ONHOLD;
-					Log.e("Error API", e.getMessage());
+				} else {
+					ex = new Exception("Kesalahan pada jaringan");
+					return null;
 				}
+			} else {
+				return null;
 			}
-			return null;
 		}
 
 		@Override
-		protected void onPostExecute(JSONObject result) {
+		protected void onPostExecute(InputStream result) {
 			// TODO Auto-generated method stub
 			super.onPostExecute(result);
 			if (result != null) {
 				task.tellFinish(result);
 				backgroundTasks.poll();
-				uploadStatus = UploadStatus.IDLE;
+				backgroundStatus = UploadStatus.IDLE;
+				// ///GO TO NEXT QUEUE
+				if (!backgroundTasks.isEmpty()) {
+					new BackgroundPushData().execute();
+				}
 			} else {
-				if (uploadStatus == UploadStatus.ONHOLD)
-					task.tellHold();
+				if (ex != null) {
+					task.tellResult(null, ex);
+					backgroundStatus = UploadStatus.ONHOLD;
+				} else {
+					backgroundStatus = UploadStatus.IDLE;
+				}
 			}
-			if (!backgroundTasks.isEmpty() && uploadStatus == UploadStatus.IDLE) {
-				new BackgroundPostData().execute();
-			}
-		}
 
+		}
 	}
 
-	// ////////////////////////FOREGROUND PUSH//////////////////////////
-	class ForegroundPostData extends
-			AsyncTask<JSONObject, JSONObject, JSONObject> {
+	private void saveBackGroundProcess() {
+		FileOutputStream fout;
+		try {
+			fout = new FileOutputStream(userid);
+			ObjectOutputStream oos = new ObjectOutputStream(fout);
+			oos.writeObject(backgroundTasks);
+			oos.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
-		boolean readyToPush = false;
+	@SuppressWarnings("unused")
+	private void loadBackGroundProcess() throws StreamCorruptedException,
+			IOException, ClassNotFoundException {
+		FileInputStream fin;
+		fin = new FileInputStream(userid);
+		ObjectInputStream iis = new ObjectInputStream(fin);
+		@SuppressWarnings("unchecked")
+		PriorityQueue<InternetTask> result = (PriorityQueue<InternetTask>) iis
+				.readObject();
+		if (result != null && !result.isEmpty())
+			backgroundTasks.addAll(result);
+	}
+
+	private void endBackgroundProcess() {
+		if (!backgroundTasks.isEmpty()) {
+			backgroundTasks.peek().cancelProcess();
+			backgroundTasks.clear();
+		}
+	}
+
+	// //////////////////////////FOREGROUND PROCESS
+	// WORKSPACE////////////////////////
+
+	class ForegroundPushData extends AsyncTask<String, String, InputStream> {
+		InternetTask task = null;
+		Exception ex = null;
 
 		@Override
 		protected void onPreExecute() {
 			// TODO Auto-generated method stub
 			super.onPreExecute();
-			if (foregroundTask != null) {
-				ConnectivityManager conMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-				NetworkInfo i = conMgr.getActiveNetworkInfo();
-				if (i == null) {
-					foregroundTask.tellHold();
-					readyToPush = false;
-				} else if (i.isConnected()) {
-					foregroundTask.tellStart();
-					readyToPush = true;
-				} else if (i.isAvailable()) {
-					foregroundTask.tellHold();
-					readyToPush = false;
-				}
+			if (!foregroundTasks.isEmpty()) {
+				task = foregroundTasks.peek();
+				task.tellStart();
+				networkStatusGovernor();
 			}
-
 		}
 
 		@Override
-		protected JSONObject doInBackground(JSONObject... params) {
-			JSONObject result = null;
-			if (readyToPush) {
-				DefaultHttpClient httpclient = new DefaultHttpClient();
-				HttpResponse response = null;
-				try {
-					response = httpclient.execute(foregroundTask.getRequest());
-					String temp = parse(response.getEntity().getContent());
-					result = new JSONObject(temp);
-				} catch (ClientProtocolException e) {
-					Log.e("Error API", e.getMessage());
-				} catch (IOException e) {
-					Log.e("Error API", e.getMessage());
-				} catch (JSONException e) {
-					Log.e("Error API", e.getMessage());
+		protected InputStream doInBackground(String... arg0) {
+			// TODO Auto-generated method stub
+			if (task != null) {
+				if (networkStatus == NetworkStatus.OK) {
+					foregroundStatus = UploadStatus.BUSY;
+					task.setAppListener(new AppListener() {
+						@Override
+						public void onCancel() {
+							foregroundTasks.remove(task);
+						}
+					});
+					try {
+//						HttpParams httpParameters = new BasicHttpParams();
+//						int timeoutConnection = 3000;
+//						HttpConnectionParams.setConnectionTimeout(
+//								httpParameters, timeoutConnection);
+//						int timeoutSocket = 5000;
+//						HttpConnectionParams.setSoTimeout(httpParameters,
+//								timeoutSocket);
+//						DefaultHttpClient httpclient = new DefaultHttpClient(
+//								httpParameters);
+						DefaultHttpClient httpclient = new DefaultHttpClient();
+						HttpResponse response = httpclient.execute(task
+								.getRequest());
+						return response.getEntity().getContent();
+					} catch (IllegalStateException e) {
+						// TODO Auto-generated catch block
+						ex = new Exception("Kesalahan pada jaringan");
+						return null;
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						ex = new Exception("Kesalahan pada jaringan");
+						return null;
+					}
+				} else {
+					ex = new Exception("Kesalahan pada jaringan");
+					return null;
 				}
+			} else {
+				return null;
 			}
-			return result;
 		}
 
 		@Override
-		protected void onPostExecute(JSONObject result) {
+		protected void onPostExecute(InputStream result) {
 			// TODO Auto-generated method stub
 			super.onPostExecute(result);
 			if (result != null) {
-				foregroundTask.tellFinish(result);
+				task.tellFinish(result);
+				foregroundTasks.poll();
+				foregroundStatus = UploadStatus.IDLE;
+				// ///GO TO NEXT QUEUE
+				if (!foregroundTasks.isEmpty()) {
+					new ForegroundPushData().execute();
+				}
 			} else {
-				foregroundTask.tellHold();
+				if (ex != null) {
+					task.tellResult(null, ex);
+					foregroundStatus = UploadStatus.ONHOLD;
+					endForegroundProcess();
+				} else {
+					foregroundStatus = UploadStatus.IDLE;
+				}
 			}
+
 		}
 	}
+
+	public void endForegroundProcess() {
+		if (!foregroundTasks.isEmpty()) {
+			foregroundTasks.peek();
+			foregroundTasks.clear();
+		}
+	}
+
+	public void startForegrounfProcess() {
+		if (!foregroundTasks.isEmpty()) {
+			foregroundTasks.peek();
+			foregroundTasks.clear();
+		}
+	}
+
+	// //////////////////////////NETWORK TOOLS///////////////////////////////
+	private void networkStatusGovernor() {
+		ConnectivityManager conMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo i = conMgr.getActiveNetworkInfo();
+		if (i == null) {
+			networkStatus = NetworkStatus.NOTOK;
+		} else if (i.isConnected()) {
+			networkStatus = NetworkStatus.OK;
+		} else if (i.isAvailable()) {
+			networkStatus = NetworkStatus.NOTOK;
+		}
+	}
+
 }
