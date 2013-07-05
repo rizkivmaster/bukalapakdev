@@ -1,6 +1,7 @@
 package view.product.list;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 import listener.APIListener;
@@ -27,6 +28,9 @@ public class LapakItemAdapter extends BaseAdapter {
 	APIService api;
 	ArrayList<Product> productList;
 	HashSet<Product> selectedProduct;
+	ArrayList<View> cachedView;
+	final boolean[] checks;
+	LayoutInflater inflater;
 
 	public LapakItemAdapter(Context c, APIService a, ArrayList<Product> list) {
 		// TODO Auto-generated constructor stub
@@ -34,6 +38,70 @@ public class LapakItemAdapter extends BaseAdapter {
 		api = a;
 		productList = list;
 		selectedProduct = new HashSet<Product>();
+		inflater = LayoutInflater.from(context);
+		cachedView = new ArrayList<View>();
+		checks = new boolean[productList.size()];
+		
+		for(int ii = 0; ii < selectedProduct.size();ii++)
+		{
+			Product p = productList.get(ii);
+			View v = inflater.inflate(R.layout.view_product_list_item, null);
+			
+			final ImageView prodIcon = (ImageView) v.findViewById(R.id.image_item);
+			String imgLink = p.getImages().get(0);
+					try {
+						api.retrieveImage(new APIListener() {
+
+							@Override
+							public void onSuccess(Object res, Exception e,
+									InternetTask task) {
+								// TODO Auto-generated method stub
+								prodIcon.setImageBitmap((Bitmap) res);
+								notifyDataSetChanged();
+							}
+
+							@Override
+							public void onHold(InternetTask task) {
+								// TODO Auto-generated method stub
+
+							}
+
+							@Override
+							public void onExecute(InternetTask task) {
+								// TODO Auto-generated method stub
+
+							}
+
+							@Override
+							public void onEnqueue(InternetTask task) {
+								// TODO Auto-generated method stub
+
+							}
+						}, imgLink);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					TextView prodName = (TextView) v.findViewById(R.id.title);
+			prodName.setText(p.getName());
+
+			TextView prodPrice = (TextView) v.findViewById(R.id.price);
+			prodPrice.setText("Rp " + p.getPrice());
+
+			TextView prodStock = (TextView) v.findViewById(R.id.stock);
+			prodStock.setText(p.getStock() + " pcs");
+
+			TextView prodStatus = (TextView) v.findViewById(R.id.status);
+			if (p.isPayment_ready()) {
+				prodStatus.setText("dijual");
+				prodStatus.setBackgroundColor(Color.GREEN);
+			} else {
+				prodStatus.setText("terjual");
+				prodStatus.setBackgroundColor(Color.RED);
+			}
+			cachedView.add(v);
+
+		}
 	}
 
 	public HashSet<Product> getSelected() {
@@ -63,83 +131,25 @@ public class LapakItemAdapter extends BaseAdapter {
 	}
 
 	@Override
-	public View getView(int arg0, View arg1, ViewGroup arg2) {
+	public View getView(final int arg0, View arg1, ViewGroup arg2) {
 		// TODO Auto-generated method stub
-		final Product p = productList.get(arg0);
-		if (arg1 == null) {
-			LayoutInflater inflater = LayoutInflater.from(context);
-			arg1 = inflater.inflate(R.layout.view_product_list_item, null);
+		if(arg1==null)
+		{
+			if(arg0<cachedView.size())
+			arg1 = cachedView.get(arg0);
+		}else
+		{
+		CheckBox prodCheck = (CheckBox) arg1.findViewById(R.id.check);
+		prodCheck.setChecked(checks[arg0]);
+		prodCheck.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 
-			String imgLink = p.getImages().get(0);
-			final ImageView prodIcon = (ImageView) arg1
-					.findViewById(R.id.image_item);
-			try {
-				api.retrieveImage(new APIListener() {
-
-					@Override
-					public void onSuccess(Object res, Exception e,
-							InternetTask task) {
-						// TODO Auto-generated method stub
-						prodIcon.setImageBitmap((Bitmap) res);
-						notifyDataSetChanged();
-					}
-
-					@Override
-					public void onHold(InternetTask task) {
-						// TODO Auto-generated method stub
-
-					}
-
-					@Override
-					public void onExecute(InternetTask task) {
-						// TODO Auto-generated method stub
-
-					}
-
-					@Override
-					public void onEnqueue(InternetTask task) {
-						// TODO Auto-generated method stub
-
-					}
-				}, imgLink);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			@Override
+			public void onCheckedChanged(CompoundButton buttonView,
+					boolean isChecked) {
+				// TODO Auto-generated method stub
+				checks[arg0] = isChecked;
 			}
-
-			TextView prodName = (TextView) arg1.findViewById(R.id.title);
-			prodName.setText(p.getName());
-
-			TextView prodPrice = (TextView) arg1.findViewById(R.id.price);
-			prodPrice.setText("Rp " + p.getPrice());
-
-			TextView prodStock = (TextView) arg1.findViewById(R.id.stock);
-			prodStock.setText(p.getStock() + " pcs");
-
-			TextView prodStatus = (TextView) arg1.findViewById(R.id.status);
-			if (p.isPayment_ready()) {
-				prodStatus.setText("dijual");
-				prodStatus.setBackgroundColor(Color.GREEN);
-			} else {
-				prodStatus.setText("terjual");
-				prodStatus.setBackgroundColor(Color.RED);
-			}
-
-			CheckBox prodCheck = (CheckBox) arg1.findViewById(R.id.check);
-			prodCheck.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-
-				@Override
-				public void onCheckedChanged(CompoundButton buttonView,
-						boolean isChecked) {
-					// TODO Auto-generated method stub
-					if (isChecked) {
-						selectedProduct.add(p);
-					} else {
-						selectedProduct.remove(p);
-					}
-				}
-			});
-
+		});
 		}
 		return arg1;
 	}

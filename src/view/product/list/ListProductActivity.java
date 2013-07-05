@@ -85,7 +85,7 @@ public class ListProductActivity extends ExtendedActivity implements
 										public void onSuccess(Object res,
 												Exception e, InternetTask task) {
 											// TODO Auto-generated method stub
-											adapter.productList.remove(p);
+											adapter.deleteProduct(p);
 											adapter.notifyDataSetChanged();
 										}
 
@@ -308,7 +308,7 @@ public class ListProductActivity extends ExtendedActivity implements
 								}
 							});
 				}
-			}, true, true);
+			}, false, false);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
