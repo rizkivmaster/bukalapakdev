@@ -13,5 +13,8 @@
     <string name="company_name">Bukalapak.com</string>
     <string name="product_name">Kertas</string>
     <string name="title_activity_main">MainActivity</string>
+    <string name="title_activity_edit_product">EditProductActivity</string>
+    <string name="title_activity_transcation">TranscationActivity</string>
+    <string name="title_activity_transaction">TransactionActivity</string>
 
 </resources>

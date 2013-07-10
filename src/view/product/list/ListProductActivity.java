@@ -139,7 +139,6 @@ public class ListProductActivity extends ExtendedActivity implements
 										public void onSuccess(Object res,
 												Exception e, InternetTask task) {
 											// TODO Auto-generated method stub
-											adapter.productList.remove(p);
 											adapter.notifyDataSetChanged();
 										}
 
@@ -262,9 +261,6 @@ public class ListProductActivity extends ExtendedActivity implements
 		// TODO Auto-generated method stub
 		super.onServiceReady(api);
 		this.api = api;
-		final ArrayList<Product> products = new ArrayList<Product>();
-		adapter = new LapakItemAdapter(context, api, products);
-		listview.setAdapter(adapter);
 		try {
 			api.listLapak(new APIListener() {
 
@@ -276,7 +272,11 @@ public class ListProductActivity extends ExtendedActivity implements
 						Toast.makeText(context, e.getMessage(),
 								Toast.LENGTH_SHORT).show();
 					} else {
+
+						ArrayList<Product> products = new ArrayList<Product>();
 						products.addAll((ArrayList<Product>) res);
+						adapter = new LapakItemAdapter(context, api, products);
+						listview.setAdapter(adapter);
 						adapter.notifyDataSetChanged();
 					}
 				}

@@ -5,7 +5,9 @@ package view.home;
 import services.APIService;
 import view.general.ExtendedActivity;
 import view.product.list.ListProductActivity;
+import view.product.list.Tab_MyLapak;
 import view.product.upload.UploadProductActivity;
+import view.transaction.TransactionActivity;
 import view.user.login.LoginActivity;
 import android.app.Activity;
 import android.content.ComponentName;
@@ -16,6 +18,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -30,6 +33,8 @@ public class Dashboard extends ExtendedActivity{
     Button btn_mylapak;
     // Dashboard Photos button
     Button btn_logout;
+    
+    Button btn_events;
     
     TextView UserFooter;
 
@@ -46,6 +51,8 @@ public class Dashboard extends ExtendedActivity{
         btn_mylapak = (Button) findViewById(R.id.btn_mylapak);        
         // Dashboard Photos button
         btn_logout = (Button) findViewById(R.id.footer_logout);
+        
+        btn_events = (Button) findViewById(R.id.btn_events);
         
         UserFooter = (TextView) findViewById(R.id.footer_text);
 
@@ -64,6 +71,15 @@ public class Dashboard extends ExtendedActivity{
          * */
         
         UserFooter.setText("Hi " + name);
+        
+        btn_events.setOnClickListener(new OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				// TODO Auto-generated method stub
+				startActivity(new Intent(Dashboard.this,TransactionActivity.class));
+			}
+		});
         
         // Listening to News Feed button click
         btn_logout.setOnClickListener(new View.OnClickListener() {
@@ -108,7 +124,7 @@ public class Dashboard extends ExtendedActivity{
 			public void onClick(View view) {
 				// Launching News Feed Screen
 				startActivity(new Intent(Dashboard.this,
-						ListProductActivity.class));
+						Tab_MyLapak.class));
 	        	
 			}
 		});

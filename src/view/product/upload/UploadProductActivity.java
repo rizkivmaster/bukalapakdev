@@ -15,11 +15,8 @@ import org.json.JSONObject;
 
 import services.APIService;
 import view.general.ExtendedActivity;
-import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
@@ -29,14 +26,15 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.provider.MediaStore;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.LayoutInflater;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnCreateContextMenuListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -69,6 +67,8 @@ public class UploadProductActivity extends ExtendedActivity {
 	LinkedList<JSONObject> cate_src;
 	ArrayList<String> listKategori = new ArrayList<String>();
 
+	boolean on_exchange;
+	boolean in_category;
 	private Context context;
 
 	// String kategori;
@@ -97,7 +97,7 @@ public class UploadProductActivity extends ExtendedActivity {
 	ArrayList<String> img_ids;
 	HashMap<String, String> attribs;
 	HashMap<String, View> specs;
-	String category_id = "242";
+	String category_id;
 	ImageView imgview;
 	// ImageUploadAdapter imageAdapter;
 	private Bitmap bitmap;
@@ -256,6 +256,7 @@ public class UploadProductActivity extends ExtendedActivity {
 			@Override
 			public void onSuccess(Object res, Exception e, InternetTask task) {
 				// TODO Auto-generated method stub
+				in_category = true;
 				clearProgressDialog();
 				if (e != null) {
 					Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT)
@@ -284,7 +285,7 @@ public class UploadProductActivity extends ExtendedActivity {
 				// TODO Auto-generated method stub
 				showProgressDialog("Kategori", "Sedang mengambil kategori....",
 						new OnCancelListener() {
-							
+
 							@Override
 							public void onCancel(DialogInterface dialog) {
 								// TODO Auto-generated method stub
@@ -369,14 +370,14 @@ public class UploadProductActivity extends ExtendedActivity {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			closeContextMenu();
-			openContextMenu(kategori);
+			on_exchange = true;
 			break;
 		case GROUP_CATEGORY_SELECTION_CHILD:
-
 			try {
+				in_category = false;
 				String name = cate_src.getLast().getString(
 						Integer.toString(idCode));
+				category_id = Integer.toString(idCode);
 				listKategori.add((String) item.getTitle());
 				kategori.setText(name);
 			} catch (JSONException e3) {
@@ -471,8 +472,9 @@ public class UploadProductActivity extends ExtendedActivity {
 				public void onEnqueue(InternetTask task) {
 					// TODO Auto-generated method stub
 					showProgressDialog("Isian Produk",
-							"Sedang memuat isian produk", new OnCancelListener() {
-								
+							"Sedang memuat isian produk",
+							new OnCancelListener() {
+
 								@Override
 								public void onCancel(DialogInterface dialog) {
 									// TODO Auto-generated method stub
@@ -729,5 +731,30 @@ public class UploadProductActivity extends ExtendedActivity {
 		listImages.addView(view);
 		listImages.requestLayout();
 		listImages.invalidate();
+	}
+
+	@Override
+	public void onContextMenuClosed(Menu menu) {
+		// TODO Auto-generated method stub
+		super.onContextMenuClosed(menu);
+		if (in_category) {
+			if (!on_exchange)
+				finish();
+			else {
+				openContextMenu(kategori);
+				on_exchange = false;
+			}
+		}
+	}
+
+	@Override
+	public void onBackPressed() {
+		// TODO Auto-generated method stub
+		super.onBackPressed();
+	}
+	
+	private boolean validateForm()
+	{
+		return true;
 	}
 }

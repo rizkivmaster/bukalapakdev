@@ -552,7 +552,7 @@ public class APIService extends Service {
 							JSONObject p = products.getJSONObject(ii);
 							String id = p.getString("id");
 							Product product = new Product(id);
-							product.setCategory(p.getString("name"));
+							product.setCategory(p.getString("category"));
 							JSONArray catlist = p.getJSONArray("category_structure");
 							List<String> temp = new ArrayList<String>(); 
 							for(int jj = 0; jj < catlist.length();jj++)
@@ -680,7 +680,13 @@ public class APIService extends Service {
 				try {
 					JSONObject res = convertToJSON(r);
 					if (res.getString("status").equals("OK")) {
-						task.tellResult(res.getJSONObject("transactions"), null);
+						ArrayList<JSONObject> list = new ArrayList<JSONObject>();
+						JSONArray temp = res.getJSONArray("transactions");
+						for(int ii = 0 ; ii <temp.length();ii++)
+						{
+							list.add(temp.getJSONObject(ii));
+						}
+						task.tellResult(list, null);
 					} else {
 						task.tellResult(null,
 								new Exception(res.getString("message")));
@@ -1006,7 +1012,8 @@ public class APIService extends Service {
 						DefaultHttpClient httpclient = new DefaultHttpClient();
 						HttpResponse response = httpclient.execute(task
 								.getRequest());
-						return response.getEntity().getContent();
+						InputStream is =response.getEntity().getContent(); 
+						return is;
 					} catch (IllegalStateException e) {
 						// TODO Auto-generated catch block
 						ex = new Exception("Kesalahan pada jaringan");

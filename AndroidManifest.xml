@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.bukalapakmobile"
+<manifest package="com.bukalapakmobile"
     android:versionCode="1"
-    android:versionName="1.0" >
+    android:versionName="1.0" xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-sdk
-        android:minSdkVersion="14"
-        android:targetSdkVersion="14" />
+        android:minSdkVersion="10"
+        android:targetSdkVersion="10" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -20,8 +19,6 @@
         <activity
             android:name="view.user.login.LoginActivity"
             android:launchMode="standard" >
-            
-            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -42,7 +39,7 @@
             </intent-filter>
         </receiver>
         <receiver android:name="services.MyStartServiceReceiver" >
-        </receiver>
+        </receiver>
         -->
         <activity android:name="view.product.upload.UploadProductActivity" >
         </activity>
@@ -51,6 +48,20 @@
         <activity
             android:name="view.test.MainActivity"
             android:label="@string/title_activity_main" >
+        </activity>
+        <activity
+            android:name="view.product.edit.EditProductActivity"
+            android:label="@string/title_activity_edit_product" >
+        </activity>
+        <activity android:name="view.product.list.Tab_MyLapak" >
+        </activity>
+        <activity
+            android:name="com.bukalapakmobile.TranscationActivity"
+            android:label="@string/title_activity_transcation" >
+        </activity>
+        <activity
+            android:name="view.transaction.TransactionActivity"
+            android:label="@string/title_activity_transaction" >
         </activity>
     </application>
 
